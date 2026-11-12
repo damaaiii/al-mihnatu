@@ -1,0 +1,6 @@
+{
+  "name": "Al-Mihnah: Bahasa Arab MTs Kelas 8 (4 Maharah & Tarkib)",
+  "description": "Media pembelajaran interaktif Bahasa Arab MTs Kelas VIII bab Al-Mihnah (Profesi), mencakup 4 Maharah (Istima', Kalam, Qira'ah, Kitabah) dan Tarkib Masdar Sharih & Muawwal, terintegrasi AI Asisten Guru.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

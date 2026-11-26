@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Headphones,
   MessageCircle,
@@ -12,10 +12,21 @@ import {
   ArrowRight,
   Target,
   Layers,
-  Flame,
-  Volume2
+  Volume2,
+  Search,
+  Briefcase,
+  Building2,
+  Wrench,
+  Quote,
 } from 'lucide-react';
-import { playArabicAudio } from '../utils/arabicTTS';
+import { playArabicAudio, stopArabicAudio } from '../utils/arabicTTS';
+import {
+  DASHBOARD_MUFRADAT,
+  type DashboardMufradatCategory,
+} from '../data/alMihnahData';
+
+const stripHarakat = (text: string) =>
+  text.replace(/[\u064B-\u065F\u0670]/g, '');
 
 interface HomeHeroProps {
   onSelectTab: (tab: string) => void;
@@ -26,6 +37,67 @@ interface HomeHeroProps {
 export const HomeHero: React.FC<HomeHeroProps> = ({ onSelectTab, onOpenPdf, onOpenAi }) => {
   const quoteArabic = 'خَيْرُ النَّاسِ أَنْفَعُهُمْ لِلنَّاسِ';
   const quoteIndo = 'Sebaik-baik manusia adalah yang paling bermanfaat bagi sesama manusia. (HR. Ahmad - Termaktub di Modul Siswa hal. 84)';
+
+  const [selectedCategory, setSelectedCategory] = useState<'all' | DashboardMufradatCategory>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [playingAudioKey, setPlayingAudioKey] = useState<string | null>(null);
+
+  const handleToggleAudio = (key: string, text: string) => {
+    if (playingAudioKey === key) {
+      stopArabicAudio();
+      setPlayingAudioKey(null);
+      return;
+    }
+    setPlayingAudioKey(key);
+    playArabicAudio(
+      text,
+      0.85,
+      () => setPlayingAudioKey(key),
+      () => setPlayingAudioKey((prev) => (prev === key ? null : prev)),
+      () => setPlayingAudioKey((prev) => (prev === key ? null : prev))
+    );
+  };
+
+  const categoryTabs: Array<{ id: 'all' | DashboardMufradatCategory; label: string }> = [
+    { id: 'all', label: 'Semua Kosa Kata' },
+    { id: 'profesi', label: 'Profesi (الْمِهَنُ)' },
+    { id: 'tempat_alat', label: 'Tempat & Alat' },
+    { id: 'aktivitas_masdar', label: 'Aktivitas & Masdar' },
+    { id: 'ungkapan', label: 'Ungkapan & Cita-cita' },
+  ];
+
+  const filteredMufradat = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const qNoHarakat = stripHarakat(q);
+
+    return DASHBOARD_MUFRADAT.filter((item) => {
+      if (selectedCategory !== 'all' && item.category !== selectedCategory) {
+        return false;
+      }
+      if (!q) return true;
+
+      return (
+        item.indonesian.toLowerCase().includes(q) ||
+        item.transliteration.toLowerCase().includes(q) ||
+        item.exampleIndo.toLowerCase().includes(q) ||
+        stripHarakat(item.arabic).includes(qNoHarakat) ||
+        stripHarakat(item.exampleArabic).includes(qNoHarakat)
+      );
+    });
+  }, [selectedCategory, searchQuery]);
+
+  const getCategoryMeta = (cat: DashboardMufradatCategory) => {
+    switch (cat) {
+      case 'profesi':
+        return { Icon: Briefcase, color: 'text-emerald-600' };
+      case 'tempat_alat':
+        return { Icon: Building2, color: 'text-amber-600' };
+      case 'aktivitas_masdar':
+        return { Icon: Wrench, color: 'text-blue-600' };
+      case 'ungkapan':
+        return { Icon: Quote, color: 'text-rose-500' };
+    }
+  };
 
   const modules = [
     {
@@ -159,6 +231,159 @@ export const HomeHero: React.FC<HomeHeroProps> = ({ onSelectTab, onOpenPdf, onOp
             Kutipan Modul Hal. 84
           </span>
         </div>
+      </section>
+
+      {/* Mufradat & 'Ibarat Pilihan Section */}
+      <section className="space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h2 className="text-xl md:text-2xl font-bold text-slate-900">
+                Mufradat &amp; 'Ibarat Pilihan
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                {filteredMufradat.length} Kosa Kata
+              </span>
+            </div>
+            <p className="text-xs md:text-sm text-slate-500 mt-1">
+              Klik ikon speaker pada setiap kartu untuk mendengarkan lafadz Arab dengan harakat lengkap.
+            </p>
+          </div>
+
+          <div className="relative w-full md:w-72 shrink-0">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cari kata (Arab / Indo)..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 transition-all shadow-xs"
+            />
+          </div>
+        </div>
+
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2">
+          {categoryTabs.map((tab) => {
+            const isActive = selectedCategory === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedCategory(tab.id)}
+                className={`px-4 py-1.5 rounded-full text-xs md:text-sm font-semibold transition-all cursor-pointer border ${
+                  isActive
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Mufradat Cards Grid */}
+        {filteredMufradat.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+            <p className="text-sm font-semibold text-slate-700">
+              Kosa kata tidak ditemukan untuk pencarian "{searchQuery}".
+            </p>
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setSelectedCategory('all');
+              }}
+              className="mt-3 px-4 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-bold hover:bg-emerald-100 transition-colors cursor-pointer"
+            >
+              Reset Filter
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredMufradat.map((item) => {
+              const { Icon: CatIcon, color: catColor } = getCategoryMeta(item.category);
+              const wordAudioKey = `word-${item.id}`;
+              const exampleAudioKey = `example-${item.id}`;
+              const isWordPlaying = playingAudioKey === wordAudioKey;
+              const isExamplePlaying = playingAudioKey === exampleAudioKey;
+
+              return (
+                <div
+                  key={item.id}
+                  className="bg-white rounded-2xl border border-slate-200/90 p-5 shadow-xs hover:shadow-md hover:border-emerald-300/80 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Top Row: Category & Speaker */}
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
+                        <CatIcon className={`w-3.5 h-3.5 ${catColor}`} />
+                        <span>{item.categoryLabel}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAudio(wordAudioKey, item.arabic)}
+                        title="Dengarkan lafadz Arab"
+                        className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                          isWordPlaying
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-slate-400 hover:text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Arabic Word + Transliteration */}
+                    <div className="text-right space-y-1 my-2">
+                      <div
+                        dir="rtl"
+                        className="font-arabic text-2xl sm:text-3xl font-bold text-slate-900 leading-relaxed"
+                      >
+                        {item.arabic}
+                      </div>
+                      <p className="text-xs italic text-slate-400">{item.transliteration}</p>
+                    </div>
+
+                    {/* Indonesian Meaning */}
+                    <h3 className="text-sm font-bold text-slate-800 mt-3 mb-4">
+                      {item.indonesian}
+                    </h3>
+                  </div>
+
+                  {/* Contoh Kalimat Sub-box */}
+                  <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-3.5 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-emerald-700">
+                        Contoh Kalimat:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleToggleAudio(exampleAudioKey, item.exampleArabic)}
+                        title="Dengarkan contoh kalimat"
+                        className={`p-1 rounded-md transition-colors cursor-pointer ${
+                          isExamplePlaying
+                            ? 'bg-emerald-600 text-white'
+                            : 'text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-100'
+                        }`}
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p
+                      dir="rtl"
+                      className="font-arabic text-base font-medium text-slate-800 text-right leading-loose"
+                    >
+                      {item.exampleArabic}
+                    </p>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      "{item.exampleIndo}"
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* 4 Maharah & Tarkib Cards Grid */}
